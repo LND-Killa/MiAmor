@@ -9,7 +9,7 @@ let isPlaying = false;
 let audioPlayer = null;
 let isLoading = false;
 
-// Updated playlist configuration - only your 2 songs
+// Updated playlist configuration
 const playlists = {
   YourFavs: [
     "Flaws And Sins.mp3"
@@ -24,14 +24,12 @@ const JOINT_COUNT_KEY = 'jointCount';
 const JOINT_DATE_KEY = 'jointDate';
 const JOINT_HISTORY_KEY = 'jointHistory';
 const SAVINGS_KEY = 'savingsAmount';
-const TARGET_AMOUNT = 10000; // €10,000 target
+const TARGET_AMOUNT = 10000;
 
 async function changeTitle() {
   while (true) {
     document.title = "💖 "+chars.slice(0, currentCount).join("")+" 💖";
-
     await sleep(300);
-
     if (increasing) {
       if (currentCount >= chars.length) {
         increasing = false;
@@ -59,16 +57,14 @@ changeTitle();
 // Music Player Functions
 function initializeMusicPlayer() {
   audioPlayer = document.getElementById('audioPlayer');
-  
-  // Set initial volume to 30%
   audioPlayer.volume = 0.3;
   document.getElementById('volumeSlider').value = 30;
   
-  // Audio event listeners
   audioPlayer.addEventListener('timeupdate', updateProgress);
   audioPlayer.addEventListener('ended', nextSong);
   audioPlayer.addEventListener('loadedmetadata', updateDuration);
   audioPlayer.addEventListener('error', handleAudioError);
+  
   audioPlayer.addEventListener('loadstart', () => {
     isLoading = true;
     updatePlayButtonState();
@@ -88,9 +84,7 @@ function initializeMusicPlayer() {
     document.getElementById('albumArt').classList.add('paused');
   });
   
-  // Load first song
   loadSong();
-  
   console.log("Music player initialized");
 }
 
@@ -107,152 +101,64 @@ function updatePlayButtonState() {
 
 function handleAudioError(e) {
   console.log('Audio error:', e);
-  document.getElementById('songTitle').textContent = "Song not found";
-  document.getElementById('songArtist').textContent = "Check file location";
+  document.getElementById('songTitle').textContent = "Error loading song";
+  document.getElementById('songArtist').textContent = "Check file path";
   isPlaying = false;
   isLoading = false;
   updatePlayButtonState();
 }
+
 function loadSong() {
   const playlist = playlists[currentPlaylist];
   if (!playlist || playlist.length === 0) {
-    document.getElementById('songTitle').textContent = "No songs found";
-    document.getElementById('songArtist').textContent = "Add MP3 files";
+    document.getElementById('songTitle').textContent = "Playlist is empty";
     return;
   }
 
   const filename = playlist[currentSongIndex];
   if (!filename) return;
   
-  // Reset display while loading
-  document.getElementById('songTitle').textContent = "Loading...";
-  document.getElementById('songArtist').textContent = "...";
-  document.getElementById('albumArt').src = 'default-album.jpg';
-  
-  // Set source
   const filePath = filename;
   audioPlayer.src = filePath;
   
-  // Reset progress
+  const songName = filename.replace('.mp3', '').replace(/_/g, ' ');
+  document.getElementById('songTitle').textContent = songName;
+  document.getElementById('songArtist').textContent = 'For Laura 💕';
+  document.getElementById('albumArt').src = 'default-album.jpg';
+  
   document.getElementById('progressFillMusic').style.width = '0%';
   document.getElementById('currentTime').textContent = '0:00';
   document.getElementById('totalTime').textContent = '0:00';
   
-  // Get fallback info from filename
-  const songName = filename.replace('.mp3', '');
-  
-  // Try to read metadata with XMLHttpRequest approach for better compatibility
   if (typeof jsmediatags !== 'undefined') {
-    console.log('Attempting to read metadata for:', filePath);
-    
-    // Use XMLHttpRequest to fetch the file data
-    const xhr = new XMLHttpRequest();
-    xhr.open('GET', filePath, true);
-    xhr.responseType = 'blob';
-    
-    xhr.onload = function() {
-      if (xhr.status === 200) {
-        const blob = xhr.response;
+    jsmediatags.read(filePath, {
+      onSuccess: function(tag) {
+        console.log('✅ Metadata successfully read for:', filePath);
+        const tags = tag.tags;
+        document.getElementById('songTitle').textContent = tags.title || songName;
+        document.getElementById('songArtist').textContent = tags.artist || 'For Laura 💕';
         
-        jsmediatags.read(blob, {
-          onSuccess: function(tag) {
-            console.log('✅ Metadata successfully read:', tag.tags);
-            const tags = tag.tags;
-            
-            // Update song info with metadata or fallback
-            document.getElementById('songTitle').textContent = tags.title || songName;
-            document.getElementById('songArtist').textContent = tags.artist || 'For Laura 💕';
-            
-            // Handle album art with better error handling
-            const albumArt = document.getElementById('albumArt');
-            if (tags.picture && tags.picture.data && tags.picture.data.length > 0) {
-              try {
-                console.log('🎨 Processing album art...');
-                const { data, format } = tags.picture;
-                
-                // Convert to Uint8Array if it's not already
-                const byteArray = data instanceof Uint8Array ? data : new Uint8Array(data);
-                
-                // Create blob with proper MIME type
-                const mimeType = format || 'image/jpeg';
-                const imageBlob = new Blob([byteArray], { type: mimeType });
-                
-                // Create object URL and set as source
-                const imageUrl = URL.createObjectURL(imageBlob);
-                
-                // Clean up previous object URL if it exists
-                if (albumArt.dataset.objectUrl) {
-                  URL.revokeObjectURL(albumArt.dataset.objectUrl);
-                }
-                
-                albumArt.onload = () => {
-                  console.log('✅ Album art loaded successfully');
-                  albumArt.dataset.objectUrl = imageUrl;
-                };
-                
-                albumArt.onerror = () => {
-                  console.log('❌ Album art failed to load, using default');
-                  URL.revokeObjectURL(imageUrl);
-                  albumArt.src = 'default-album.jpg';
-                };
-                
-                albumArt.src = imageUrl;
-                
-              } catch (artError) {
-                console.log('❌ Error processing album art:', artError);
-                albumArt.src = 'default-album.jpg';
-              }
-            } else {
-              console.log('ℹ️ No album art found in metadata');
-              albumArt.src = 'default-album.jpg';
-            }
-            
-            // Log additional metadata for debugging
-            console.log('📀 Album:', tags.album || 'Unknown');
-            console.log('📅 Year:', tags.year || 'Unknown');
-            console.log('🎵 Genre:', tags.genre || 'Unknown');
-          },
-          onError: function(error) {
-            console.log('❌ Metadata reading failed:', error.type, error.info);
-            // Set fallback info
-            document.getElementById('songTitle').textContent = songName;
-            document.getElementById('songArtist').textContent = 'For Laura 💕';
-            document.getElementById('albumArt').src = 'default-album.jpg';
+        const albumArt = document.getElementById('albumArt');
+        if (tags.picture) {
+          const { data, format } = tags.picture;
+          let base64String = "";
+          for (let i = 0; i < data.length; i++) {
+            base64String += String.fromCharCode(data[i]);
           }
-        });
-      } else {
-        console.log('❌ Failed to load file:', xhr.status);
-        // Set fallback info
-        document.getElementById('songTitle').textContent = songName;
-        document.getElementById('songArtist').textContent = 'For Laura 💕';
-        document.getElementById('albumArt').src = 'default-album.jpg';
+          albumArt.src = `data:${format};base64,${window.btoa(base64String)}`;
+        }
+      },
+      onError: function(error) {
+        console.log('❌ Could not read metadata for', filePath, ':', error.type);
       }
-    };
-    
-    xhr.onerror = function() {
-      console.log('❌ XHR error loading file');
-      // Set fallback info
-      document.getElementById('songTitle').textContent = songName;
-      document.getElementById('songArtist').textContent = 'For Laura 💕';
-      document.getElementById('albumArt').src = 'default-album.jpg';
-    };
-    
-    xhr.send();
-  } else {
-    console.log('⚠️ jsmediatags library not available, using fallback');
-    // Fallback when library not available
-    document.getElementById('songTitle').textContent = songName;
-    document.getElementById('songArtist').textContent = 'For Laura 💕';
-    document.getElementById('albumArt').src = 'default-album.jpg';
+    });
   }
-  
-  console.log('🎵 Loaded song:', filename);
 }
 
+// UPDATED: Rewritten playback functions for stability
 function togglePlayPause() {
   if (isLoading) return;
-  
-  if (isPlaying) {
+  if (!audioPlayer.paused) {
     pauseMusic();
   } else {
     playMusic();
@@ -260,117 +166,71 @@ function togglePlayPause() {
 }
 
 function playMusic() {
-  if (!audioPlayer.src || isLoading) {
-    showCuteAlert("No song loaded! 🎵");
-    return;
-  }
-
-  const playPromise = audioPlayer.play();
-  
-  if (playPromise !== undefined) {
-    playPromise.then(() => {
-      // Play started successfully
-      console.log('Playback started');
-    }).catch(error => {
-      console.log('Playback failed:', error);
-      if (error.name === 'NotAllowedError') {
-        showCuteAlert("Click to start music! (Browser needs permission) 🎵");
-      } else {
-        showCuteAlert("Playback error - check console 🎵");
-      }
-    });
+  if (!audioPlayer.src || isLoading) return;
+  if (audioPlayer.paused) {
+    const playPromise = audioPlayer.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(error => {
+        console.log('Playback failed:', error);
+        isPlaying = false;
+        updatePlayButtonState();
+      });
+    }
   }
 }
 
 function pauseMusic() {
-  audioPlayer.pause();
+  if (!audioPlayer.paused) {
+    audioPlayer.pause();
+  }
 }
 
 function nextSong() {
   const playlist = playlists[currentPlaylist];
   if (!playlist || playlist.length === 0) return;
   
-  const wasPlaying = isPlaying;
-  
-  // Pause current song
-  if (isPlaying) {
-    audioPlayer.pause();
-  }
-  
-  // Move to next song
+  const wasPlaying = !audioPlayer.paused;
+  pauseMusic();
+
   currentSongIndex = (currentSongIndex + 1) % playlist.length;
   loadSong();
   
-  // Auto-play new song if previous was playing (Spotify behavior)
   if (wasPlaying) {
-    // Wait for the song to be ready, then play
-    const tryPlay = () => {
-      if (audioPlayer.readyState >= 2) { // HAVE_CURRENT_DATA
-        playMusic();
-      } else {
-        // Wait a bit more and try again
-        setTimeout(tryPlay, 100);
-      }
-    };
-    setTimeout(tryPlay, 50);
+    audioPlayer.addEventListener('canplay', playMusic, { once: true });
   }
 }
 
 function previousSong() {
   const playlist = playlists[currentPlaylist];
   if (!playlist || playlist.length === 0) return;
+
+  const wasPlaying = !audioPlayer.paused;
+  pauseMusic();
   
-  const wasPlaying = isPlaying;
-  
-  // Pause current song
-  if (isPlaying) {
-    audioPlayer.pause();
-  }
-  
-  // Move to previous song
-  currentSongIndex = currentSongIndex === 0 ? playlist.length - 1 : currentSongIndex - 1;
+  currentSongIndex = (currentSongIndex === 0) ? playlist.length - 1 : currentSongIndex - 1;
   loadSong();
   
-  // Auto-play new song if previous was playing (Spotify behavior)
   if (wasPlaying) {
-    const tryPlay = () => {
-      if (audioPlayer.readyState >= 2) {
-        playMusic();
-      } else {
-        setTimeout(tryPlay, 100);
-      }
-    };
-    setTimeout(tryPlay, 50);
+    audioPlayer.addEventListener('canplay', playMusic, { once: true });
   }
 }
 
 function switchPlaylist(playlist) {
+  if (currentPlaylist === playlist) return;
+
+  const wasPlaying = !audioPlayer.paused;
+  pauseMusic();
+
   currentPlaylist = playlist;
   currentSongIndex = 0;
   
-  // Update button states
   document.querySelectorAll('.playlist-btn').forEach(btn => btn.classList.remove('active'));
   document.getElementById(playlist === 'YourFavs' ? 'yourFavsBtn' : 'forYouBtn').classList.add('active');
   
-  const wasPlaying = isPlaying;
-  
-  // Pause current song
-  if (isPlaying) {
-    audioPlayer.pause();
-  }
-  
   loadSong();
   
-  // Auto-play new song if previous was playing
   if (wasPlaying) {
-    const tryPlay = () => {
-      if (audioPlayer.readyState >= 2) {
-        playMusic();
-      } else {
-        setTimeout(tryPlay, 100);
-      }
-    };
-    setTimeout(tryPlay, 50);
+    audioPlayer.addEventListener('canplay', playMusic, { once: true });
   }
   
   const playlistName = playlist === 'YourFavs' ? 'Your Favorites' : 'Songs For You';
@@ -399,7 +259,6 @@ function updateDuration() {
 
 function seekTo(event) {
   if (!audioPlayer.duration) return;
-  
   const progressBar = event.currentTarget;
   const clickX = event.offsetX;
   const width = progressBar.offsetWidth;
@@ -418,9 +277,7 @@ function formatTime(seconds) {
 function initializeJointTracker() {
   const today = new Date().toDateString();
   const savedDate = localStorage.getItem(JOINT_DATE_KEY);
-  
   if (savedDate !== today) {
-    // New day - save yesterday's count to history and reset
     const yesterdayCount = parseInt(localStorage.getItem(JOINT_COUNT_KEY) || '0');
     if (savedDate && yesterdayCount > 0) {
       saveToHistory(savedDate, yesterdayCount);
@@ -428,7 +285,6 @@ function initializeJointTracker() {
     localStorage.setItem(JOINT_COUNT_KEY, '0');
     localStorage.setItem(JOINT_DATE_KEY, today);
   }
-  
   updateJointDisplay();
 }
 
@@ -437,8 +293,6 @@ function addJoint() {
   const newCount = currentCount + 1;
   localStorage.setItem(JOINT_COUNT_KEY, newCount.toString());
   updateJointDisplay();
-  
-  // Cute feedback
   if (newCount === 1) {
     showCuteAlert("First one today! 🍃");
   } else if (newCount === 5) {
@@ -456,7 +310,6 @@ function updateJointDisplay() {
 function saveToHistory(date, count) {
   const history = JSON.parse(localStorage.getItem(JOINT_HISTORY_KEY) || '[]');
   history.unshift({ date, count });
-  // Keep only last 30 days
   if (history.length > 30) {
     history.splice(30);
   }
@@ -466,7 +319,6 @@ function saveToHistory(date, count) {
 function showJointHistory() {
   const history = JSON.parse(localStorage.getItem(JOINT_HISTORY_KEY) || '[]');
   const historyList = document.getElementById('historyList');
-  
   if (history.length === 0) {
     historyList.innerHTML = '<p style="text-align: center; color: var(--text-light);">No history yet 💚</p>';
   } else {
@@ -477,7 +329,6 @@ function showJointHistory() {
       </div>`
     ).join('');
   }
-  
   document.getElementById('historyModal').style.display = 'flex';
 }
 
@@ -497,7 +348,6 @@ function updateSavings(amount) {
   updateSavingsDisplay(amount);
 }
 
-// Custom amount button update function
 function updateCustomButtons() {
   const amount = parseFloat(document.getElementById('customAmount').value) || 0;
   document.getElementById('customDeductBtn').textContent = `-€${amount}`;
@@ -525,10 +375,8 @@ function customDeduct() {
 function updateSavingsDisplay(amount) {
   const savings = parseFloat(localStorage.getItem(SAVINGS_KEY) || '0');
   document.getElementById('savingsAmount').textContent = `€${savings.toFixed(0)}`;
-  
   const progress = Math.min(100, (savings / TARGET_AMOUNT) * 100);
   document.getElementById('progressFill').style.width = `${progress}%`;
-  
   if (progress >= 100) {
     showCuteAlert("TICKET MONEY READY! ✈️🎉💕");
   } else if (amount && amount > 0) {
@@ -543,7 +391,6 @@ function showCuteAlert(message) {
   alert.className = 'cute-alert';
   alert.innerHTML = `${message} 🥺💕`;
   document.body.appendChild(alert);
-  
   setTimeout(() => {
     alert.remove();
   }, 2000);
@@ -551,38 +398,26 @@ function showCuteAlert(message) {
 
 function CheckIfRight(event) {
   event.preventDefault();
-
-  const userInput = document
-    .getElementById("name-input")
-    .value
-    .trim()
-    .toLowerCase();
-
+  const userInput = document.getElementById("name-input").value.trim().toLowerCase();
   if (userInput === "laura") {
     document.querySelector(".main-body").style.display = "none";
     document.getElementById("hiddenBody").classList.add("active");
     document.body.classList.add("heart-bg");
-    
-    // Show all hidden elements
     document.getElementById("cinnamorollChar").style.display = "block";
     document.getElementById("helloKittyChar").style.display = "block";
     document.getElementById("jointIcon").style.display = "block";
     document.getElementById("savingsIcon").style.display = "block";
     document.getElementById("musicPlayer").style.display = "block";
-    
-    // Initialize trackers and music player
     initializeJointTracker();
     initializeSavingsTracker();
     initializeMusicPlayer();
-    
-    // Add some celebration hearts
     createCelebrationHearts();
   } else {
     showCuteAlert("¿Eres tú?!? 🤔");
   }
 }
 
-// Tracker modal functions
+// Modal functions
 function openJointTracker() {
   document.getElementById('jointModal').style.display = 'flex';
   createMagicalSparkles('🍃', '#4a7c59');
@@ -595,7 +430,6 @@ function openSavingsTracker() {
   showCuteAlert("Savings tracker opened! 💰✈️");
 }
 
-// Secret Easter Egg Functions
 function openCinnamorollSecret() {
   document.getElementById('cinnamorollModal').style.display = 'flex';
   createMagicalSparkles('🐰', '#87CEEB');
@@ -625,12 +459,8 @@ function createMagicalSparkles(emoji, color) {
       sparkle.style.pointerEvents = 'none';
       sparkle.style.filter = `drop-shadow(0 0 10px ${color})`;
       sparkle.style.animation = `twinkle 2s ease-out forwards`;
-      
       document.body.appendChild(sparkle);
-      
-      setTimeout(() => {
-        sparkle.remove();
-      }, 2000);
+      setTimeout(() => { sparkle.remove(); }, 2000);
     }, i * 100);
   }
 }
@@ -647,19 +477,14 @@ function createCelebrationHearts() {
       heart.style.zIndex = '1000';
       heart.style.pointerEvents = 'none';
       heart.style.animation = `float ${3 + Math.random() * 2}s ease-out forwards`;
-      
       document.body.appendChild(heart);
-      
-      setTimeout(() => {
-        heart.remove();
-      }, 5000);
+      setTimeout(() => { heart.remove(); }, 5000);
     }, i * 200);
   }
 }
 
 let lastCheck = 0;
 
-// Add some interactive sparkles on mouse move
 document.addEventListener('mousemove', (e) => {
   if (Math.random() < 0.1) {
     const now = Date.now();
@@ -675,35 +500,21 @@ document.addEventListener('mousemove', (e) => {
     sparkle.style.zIndex = '999';
     sparkle.style.animation = 'sparkle 1s ease-out forwards';
     document.body.appendChild(sparkle);
-    
-    setTimeout(() => {
-      sparkle.remove();
-    }, 1000);
+    setTimeout(() => { sparkle.remove(); }, 1000);
   }
 });
 
-// Close modals when clicking outside
 document.addEventListener('click', (e) => {
-  if (e.target.classList.contains('secret-modal')) {
-    e.target.style.display = 'none';
-  }
-  if (e.target.classList.contains('history-modal')) {
+  if (e.target.classList.contains('secret-modal') || e.target.classList.contains('history-modal')) {
     e.target.style.display = 'none';
   }
 });
 
-// Add sparkle animation keyframe for mouse sparkles
 const style = document.createElement('style');
 style.textContent = `
   @keyframes sparkle {
-    0% { 
-      opacity: 1; 
-      transform: scale(1) rotate(0deg); 
-    }
-    100% { 
-      opacity: 0; 
-      transform: scale(1.5) rotate(180deg) translateY(-30px); 
-    }
+    0% { opacity: 1; transform: scale(1) rotate(0deg); }
+    100% { opacity: 0; transform: scale(1.5) rotate(180deg) translateY(-30px); }
   }
 `;
 document.head.appendChild(style);
