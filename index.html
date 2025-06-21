@@ -1141,7 +1141,7 @@
         showCuteAlert("TICKET MONEY READY! ✈️🎉💕");
       } else if (amount > 0) {
         showCuteAlert(`+€${amount}! Getting closer! ✈️💕`);
-      } else {
+      } else if (amount < 0) {
         showCuteAlert(`€${Math.abs(amount)} spent 💸`);
       }
     }
