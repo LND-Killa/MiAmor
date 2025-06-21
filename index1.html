@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>💖 Laura Mi Amor 💖</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- ID3 tag reading library for MP3 metadata -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
+</head>
+<body>
+  <!-- Hidden Easter Eggs (hidden until login) -->
+  <div class="hidden-character cinnamoroll" id="cinnamorollChar" onclick="openCinnamorollSecret()" title="¡Haz clic en mí! 🐰" style="display: none;"></div>
+  <div class="hidden-character hello-kitty" id="helloKittyChar" onclick="openHelloKittySecret()" title="¡Hola! Haz clic aquí 🎀" style="display: none;"></div>
+
+  <!-- Tracking Icons (hidden until login) -->
+  <div class="hidden-character" id="jointIcon" onclick="openJointTracker()" title="Joint Tracker 🍃" style="top: 8%; left: 5%; display: none;">🍃</div>
+  <div class="hidden-character" id="savingsIcon" onclick="openSavingsTracker()" title="Savings Tracker 💰" style="bottom: 12%; right: 3%; display: none;">💰</div>
+
+  <!-- Music Player (hidden until login) -->
+  <div class="music-player" id="musicPlayer">
+    <div class="player-header">
+      <div class="playlist-switcher">
+        <button class="playlist-btn active" id="yourFavsBtn" onclick="switchPlaylist('YourFavs')">💖 Your Favs</button>
+        <button class="playlist-btn" id="forYouBtn" onclick="switchPlaylist('ForYou')">🎵 For You</button>
+      </div>
+    </div>
+    
+    <div class="song-info">
+      <img src="default-album.jpg" alt="Album Art" class="album-art" id="albumArt">
+      <div class="song-details">
+        <h3 class="song-title" id="songTitle">Loading...</h3>
+        <p class="song-artist" id="songArtist">...</p>
+      </div>
+    </div>
+    
+    <div class="controls">
+      <button class="control-btn" onclick="previousSong()">⏮</button>
+      <button class="control-btn play-pause-btn" id="playPauseBtn" onclick="togglePlayPause()">▶</button>
+      <button class="control-btn" onclick="nextSong()">⏭</button>
+    </div>
+    
+    <div class="progress-container">
+      <span class="time-display" id="currentTime">0:00</span>
+      <div class="progress-bar-music" onclick="seekTo(event)">
+        <div class="progress-fill-music" id="progressFillMusic"></div>
+      </div>
+      <span class="time-display" id="totalTime">0:00</span>
+    </div>
+    
+    <div class="volume-container">
+      <span class="volume-icon">🔊</span>
+      <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="30" oninput="setVolume(this.value)">
+    </div>
+  </div>
+
+  <audio id="audioPlayer" preload="auto"></audio>
+
+  <!-- Joint Tracker Modal -->
+  <div id="jointModal" class="secret-modal">
+    <div class="secret-content">
+      <button class="close-btn" onclick="closeModal('jointModal')">×</button>
+      <h2>🍃 Daily Joint Tracker 🍃</h2>
+      <div class="tracker-display joint-count" id="jointCount">0</div>
+      <p style="margin: 5px 0 20px 0; color: var(--text-light); font-style: italic;">Today's count</p>
+      
+      <div style="display: flex; gap: 15px; justify-content: center; align-items: center; margin: 20px 0;">
+        <button class="tracker-btn" onclick="addJoint()" style="
+          background: linear-gradient(135deg, #4a7c59, #6aa079);
+          font-size: 1.8rem;
+          width: 60px;
+          height: 60px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 8px 20px rgba(74, 124, 89, 0.3);
+          border: 3px solid #ffffff80;
+        ">+1</button>
+        
+        <button class="tracker-btn history-btn" onclick="showJointHistory()" style="
+          background: var(--lavender);
+          color: var(--text-dark);
+          padding: 12px 24px;
+          font-size: 1rem;
+          border-radius: 20px;
+          box-shadow: 0 6px 15px rgba(230, 230, 250, 0.4);
+        ">📊 View History</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Savings Tracker Modal -->
+  <div id="savingsModal" class="secret-modal">
+    <div class="secret-content" style="max-width: 600px;">
+      <button class="close-btn" onclick="closeModal('savingsModal')">×</button>
+      <h2>💰 Ticket Fund Tracker 💰</h2>
+      <div class="tracker-display savings-amount" id="savingsAmount">€0</div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+      </div>
+      <p style="margin: 5px 0 25px 0; color: var(--text-light); font-style: italic;">Goal: €10,000 for plane ticket ✈️</p>
+      
+      <!-- Quick Amount Buttons - Symmetrical Layout -->
+      <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin: 20px 0;">
+        <button class="tracker-btn" onclick="updateSavings(-100)">-€100</button>
+        <button class="tracker-btn" onclick="updateSavings(-50)">-€50</button>
+        <button class="tracker-btn" onclick="updateSavings(-25)">-€25</button>
+        <button class="tracker-btn" onclick="updateSavings(-10)">-€10</button>
+        <button class="tracker-btn" onclick="updateSavings(-5)">-€5</button>
+        
+        <button class="tracker-btn" onclick="updateSavings(5)">+€5</button>
+        <button class="tracker-btn" onclick="updateSavings(10)">+€10</button>
+        <button class="tracker-btn" onclick="updateSavings(25)">+€25</button>
+        <button class="tracker-btn" onclick="updateSavings(50)">+€50</button>
+        <button class="tracker-btn" onclick="updateSavings(100)">+€100</button>
+      </div>
+      
+      <!-- Custom Amount Section -->
+      <div style="
+        background: rgba(255, 255, 255, 0.6);
+        border-radius: 20px;
+        padding: 20px;
+        margin: 20px 0;
+        border: 2px solid var(--blush-pink);
+      ">
+        <p style="margin: 0 0 15px 0; font-family: 'Caveat', cursive; font-size: 1.3rem; color: var(--text-dark);">Custom Amount</p>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <button class="tracker-btn" onclick="customDeduct()" style="
+            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+            font-size: 1.1rem;
+            padding: 12px 16px;
+            border-radius: 15px;
+            min-width: 80px;
+          " id="customDeductBtn">-€0</button>
+          
+          <input type="number" id="customAmount" placeholder="Enter amount" style="
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid var(--blush-pink);
+            border-radius: 15px;
+            text-align: center;
+            font-family: 'Quicksand', sans-serif;
+            font-size: 1.1rem;
+            outline: none;
+            background: rgba(255, 255, 255, 0.9);
+          " oninput="updateCustomButtons()">
+          
+          <button class="tracker-btn" onclick="customAdd()" style="
+            background: linear-gradient(135deg, #51cf66, #40c057);
+            font-size: 1.1rem;
+            padding: 12px 16px;
+            border-radius: 15px;
+            min-width: 80px;
+          " id="customAddBtn">+€0</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Joint History Modal -->
+  <div class="history-modal" id="historyModal">
+    <div class="history-content">
+      <h3 style="font-family: 'Caveat', cursive; color: var(--text-dark); text-align: center;">🍃 Joint History</h3>
+      <div id="historyList"></div>
+      <button class="tracker-btn" onclick="closeHistory()" style="width: 100%; margin-top: 15px;">Close</button>
+    </div>
+  </div>
+
+  <!-- Secret Modals -->
+  <div id="cinnamorollModal" class="secret-modal">
+    <div class="secret-content">
+      <button class="close-btn" onclick="closeModal('cinnamorollModal')">×</button>
+      <h2>🐰 My Sweet Cinnamoroll 🐰</h2>
+      <p>You know what's sweeter than Cinnamoroll? 💙</p>
+      <div class="cute-gallery">
+        <div class="cute-item">🐰</div>
+        <div class="cute-item">☁️</div>
+        <div class="cute-item">💙</div>
+        <div class="cute-item">🌟</div>
+        <div class="cute-item">🥐</div>
+        <div class="cute-item">✨</div>
+      </div>
+      <p>Your smile when you see me! 🥰</p>
+      <p style="font-family: 'Caveat', cursive; font-size: 1.5rem; color: var(--soft-pink);">
+        I can't wait to hold you in my arms ☁️💕
+      </p>
+    </div>
+  </div>
+
+  <div id="helloKittyModal" class="secret-modal">
+    <div class="secret-content">
+      <button class="close-btn" onclick="closeModal('helloKittyModal')">×</button>
+      <h2>🎀 Hello Beautiful 🎀</h2>
+      <p>Hello Kitty is cute, but you're absolutely gorgeous! 💖</p>
+      <div class="cute-gallery">
+        <div class="cute-item">🎀</div>
+        <div class="cute-item">💖</div>
+        <div class="cute-item">🌸</div>
+        <div class="cute-item">✈️</div>
+        <div class="cute-item">👑</div>
+        <div class="cute-item">💝</div>
+      </div>
+      <p>Every day I fall more in love with you! 👯‍♀️</p>
+      <p style="font-family: 'Caveat', cursive; font-size: 1.5rem; color: var(--soft-pink);">
+        Soon we'll be together forever 🗾💕
+      </p>
+    </div>
+  </div>
+
+  <!-- Scattered sparkles throughout the page -->
+  <div class="sparkle">✨</div>
+  <div class="sparkle">⭐</div>
+  <div class="sparkle">✨</div>
+  <div class="sparkle">💫</div>
+  <div class="sparkle">✨</div>
+  <div class="sparkle">⭐</div>
+  <div class="sparkle">✨</div>
+  <div class="sparkle">💫</div>
+  <div class="sparkle">✨</div>
+  <div class="sparkle">⭐</div>
+  <div class="sparkle">✨</div>
+  <div class="sparkle">💫</div>
+
+  <div class="main-body card">
+    <form class="main-body-form" onsubmit="CheckIfRight(event)">
+      <p>✨ ¿Quién es la chica más hermosa? ✨</p>
+      <div class="input-container">
+        <input type="text" id="name-input" autocomplete="off" placeholder="Escribe tu nombre aquí... 💕" />
+      </div>
+      <button type="submit" class="submit-btn">💖 Enviar 💖</button>
+    </form>
+  </div>
+
+  <div class="hidden-body" id="hiddenBody">
+    <div class="love-card">
+      <p>🎉 ¡¡¡FACTOS!!! 🎉</p>
+    </div>
+    <div class="love-card middle-body">
+      <p>Hola mi amor bonita 💕</p>
+    </div>
+    <div class="love-card bottom-body">
+      <p>Eres mi mundo entero 🌍✨</p>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
