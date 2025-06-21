@@ -120,52 +120,57 @@ function handleAudioError(e) {
 }
 
 function loadSong() {
-  const playlist = playlists[currentPlaylist];
-  if (!playlist || playlist.length === 0) {
-    document.getElementById('songTitle').textContent = "Playlist is empty";
-    return;
-  }
-
-  const filename = playlist[currentSongIndex];
-  if (!filename) return;
-  
+  // Assuming 'playlists', 'currentPlaylist', and 'currentSongIndex' are defined elsewhere
+  // and that 'audioPlayer' is your HTML audio element.
+  const filename = playlists[currentPlaylist][currentSongIndex];
   const filePath = filename;
-  audioPlayer.src = filePath;
-  
   const songName = filename.replace('.mp3', '').replace(/_/g, ' ');
+
+  // Set the audio source for playback
+  audioPlayer.src = filePath;
+
+  // --- Set Initial UI State ---
+  // Display clean fallback text immediately while metadata loads.
   document.getElementById('songTitle').textContent = songName;
-  document.getElementById('songArtist').textContent = 'For Laura 💕';
-  document.getElementById('albumArt').src = 'default-album.jpg';
-  
-  document.getElementById('progressFillMusic').style.width = '0%';
-  document.getElementById('currentTime').textContent = '0:00';
-  document.getElementById('totalTime').textContent = '0:00';
-  
+  document.getElementById('songArtist').textContent = 'Loading artist...';
+  document.getElementById('albumArt').src = 'default-album.jpg'; // Make sure you have a default image
+
+  // --- Read Metadata ---
+  // This will now work because the files are on a server (GitHub Pages).
   if (typeof jsmediatags !== 'undefined') {
     jsmediatags.read(filePath, {
       onSuccess: function(tag) {
         console.log('✅ Metadata successfully read for:', filePath);
         const tags = tag.tags;
+
+        // Update the page with the metadata from the MP3 file
         document.getElementById('songTitle').textContent = tags.title || songName;
-        document.getElementById('songArtist').textContent = tags.artist || 'For Laura 💕';
+        document.getElementById('songArtist').textContent = tags.artist || 'Unknown Artist';
         
         const albumArt = document.getElementById('albumArt');
         if (tags.picture) {
+          // If album art exists in the metadata, convert it to a format the <img> tag can display
           const { data, format } = tags.picture;
           let base64String = "";
           for (let i = 0; i < data.length; i++) {
             base64String += String.fromCharCode(data[i]);
           }
           albumArt.src = `data:${format};base64,${window.btoa(base64String)}`;
+        } else {
+          // If the file has metadata but no picture, use the default.
+          albumArt.src = 'default-album.jpg';
         }
       },
       onError: function(error) {
+        // This will run if the MP3 file can't be found or is corrupt.
         console.log('❌ Could not read metadata for', filePath, ':', error.type);
+        document.getElementById('songArtist').textContent = 'Artist not found';
       }
     });
+  } else {
+    console.error("jsmediatags library not loaded!");
   }
 }
-
 // UPDATED: Rewritten playback functions for stability
 function togglePlayPause() {
   if (isLoading) return;
