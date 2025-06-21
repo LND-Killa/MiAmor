@@ -12,10 +12,18 @@ let isLoading = false;
 // Updated playlist configuration
 const playlists = {
   YourFavs: [
-    "Flaws And Sins.mp3"
+    "Jugador 9.mp3",
+    "La Pantera.mp3",
+    "Latinas Everywhere (Weke Weke).mp3",
+    "Not Even Ghosts Are This Empty.mp3",
+    "The Number You Have Dialed Is Not in Service.mp3"
   ],
   ForYou: [
-    "Desire.mp3"
+    "Desire.mp3",
+    "Flaws And Sins.mp3",
+    "She’s The One.mp3",
+    "Adore You.mp3",
+    "999 (Alkaline).mp3"
   ]
 };
 
