@@ -872,39 +872,38 @@ body::before {
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-/* Heart background when activated */
+/* Heart background when activated - FIXED */
 body.heart-bg {
   background: linear-gradient(135deg, 
     #ffe4e6 0%, 
     #fce7f3 50%, 
     #f3e8ff 100%);
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
 }
 
 body.heart-bg::before {
-  animation: float 15s linear infinite;
-}
-
-body.heart-bg .love-heart {
+  content: "";
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 100vmin;
-  height: 100vmin;
+  width: 90vmin;
+  height: 90vmin;
   transform: translate(-50%, -50%);
-  z-index: -3;
+  z-index: -1;
   background: 
-    radial-gradient(circle at 35% 35%, var(--soft-pink) 30%, transparent 31%),
-    radial-gradient(circle at 65% 35%, var(--soft-pink) 30%, transparent 31%);
-  clip-path: polygon(50% 90%, 10% 40%, 40% 10%, 60% 10%, 90% 40%);
-  animation: heart-beat 2.5s infinite ease-in-out;
-  opacity: 0.15;
+    radial-gradient(circle at 30% 30%, #ff9aa2 29%, transparent 30%),
+    radial-gradient(circle at 70% 30%, #ff9aa2 29%, transparent 30%),
+    linear-gradient(#ff9aa2 0%, #ff9aa2 100%) bottom/100% 50% no-repeat;
+  clip-path: polygon(-41% 0, 50% 91%, 141% 0);
+  animation: heart-pulse 2s infinite ease-in-out;
 }
 
-@keyframes heart-beat {
-  0%, 100% { transform: translate(-50%, -50%) scale(1); }
-  25% { transform: translate(-50%, -50%) scale(1.05); }
-  50% { transform: translate(-50%, -50%) scale(1.1); }
-  75% { transform: translate(-50%, -50%) scale(1.05); }
+@keyframes heart-pulse {
+  0% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(1.03); }
+  100% { transform: translate(-50%, -50%) scale(1); }
 }
 
 /* Mobile responsiveness */

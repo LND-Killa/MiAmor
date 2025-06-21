@@ -113,7 +113,6 @@ function handleAudioError(e) {
   isLoading = false;
   updatePlayButtonState();
 }
-
 function loadSong() {
   const playlist = playlists[currentPlaylist];
   if (!playlist || playlist.length === 0) {
@@ -139,62 +138,115 @@ function loadSong() {
   document.getElementById('currentTime').textContent = '0:00';
   document.getElementById('totalTime').textContent = '0:00';
   
-  // First set fallback info from filename
+  // Get fallback info from filename
   const songName = filename.replace('.mp3', '');
   
-  // Try to read metadata with better error handling
-  if (window.jsmediatags && window.jsmediatags.read) {
+  // Try to read metadata with XMLHttpRequest approach for better compatibility
+  if (typeof jsmediatags !== 'undefined') {
     console.log('Attempting to read metadata for:', filePath);
     
-    window.jsmediatags.read(filePath, {
-      onSuccess: function(tag) {
-        console.log('Metadata successfully read:', tag);
-        const tags = tag.tags;
+    // Use XMLHttpRequest to fetch the file data
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', filePath, true);
+    xhr.responseType = 'blob';
+    
+    xhr.onload = function() {
+      if (xhr.status === 200) {
+        const blob = xhr.response;
         
-        // Update song info with metadata or fallback
-        document.getElementById('songTitle').textContent = tags.title || songName;
-        document.getElementById('songArtist').textContent = tags.artist || 'For Laura 💕';
-        
-        // Handle album art
-        const albumArt = document.getElementById('albumArt');
-        if (tags.picture && tags.picture.data) {
-          try {
-            const { data, format } = tags.picture;
-            const byteArray = new Uint8Array(data);
-            const blob = new Blob([byteArray], { type: format });
-            const imageUrl = URL.createObjectURL(blob);
-            albumArt.src = imageUrl;
-            console.log('Album art loaded successfully');
-          } catch (artError) {
-            console.log('Error loading album art:', artError);
-            albumArt.src = 'default-album.jpg';
+        jsmediatags.read(blob, {
+          onSuccess: function(tag) {
+            console.log('✅ Metadata successfully read:', tag.tags);
+            const tags = tag.tags;
+            
+            // Update song info with metadata or fallback
+            document.getElementById('songTitle').textContent = tags.title || songName;
+            document.getElementById('songArtist').textContent = tags.artist || 'For Laura 💕';
+            
+            // Handle album art with better error handling
+            const albumArt = document.getElementById('albumArt');
+            if (tags.picture && tags.picture.data && tags.picture.data.length > 0) {
+              try {
+                console.log('🎨 Processing album art...');
+                const { data, format } = tags.picture;
+                
+                // Convert to Uint8Array if it's not already
+                const byteArray = data instanceof Uint8Array ? data : new Uint8Array(data);
+                
+                // Create blob with proper MIME type
+                const mimeType = format || 'image/jpeg';
+                const imageBlob = new Blob([byteArray], { type: mimeType });
+                
+                // Create object URL and set as source
+                const imageUrl = URL.createObjectURL(imageBlob);
+                
+                // Clean up previous object URL if it exists
+                if (albumArt.dataset.objectUrl) {
+                  URL.revokeObjectURL(albumArt.dataset.objectUrl);
+                }
+                
+                albumArt.onload = () => {
+                  console.log('✅ Album art loaded successfully');
+                  albumArt.dataset.objectUrl = imageUrl;
+                };
+                
+                albumArt.onerror = () => {
+                  console.log('❌ Album art failed to load, using default');
+                  URL.revokeObjectURL(imageUrl);
+                  albumArt.src = 'default-album.jpg';
+                };
+                
+                albumArt.src = imageUrl;
+                
+              } catch (artError) {
+                console.log('❌ Error processing album art:', artError);
+                albumArt.src = 'default-album.jpg';
+              }
+            } else {
+              console.log('ℹ️ No album art found in metadata');
+              albumArt.src = 'default-album.jpg';
+            }
+            
+            // Log additional metadata for debugging
+            console.log('📀 Album:', tags.album || 'Unknown');
+            console.log('📅 Year:', tags.year || 'Unknown');
+            console.log('🎵 Genre:', tags.genre || 'Unknown');
+          },
+          onError: function(error) {
+            console.log('❌ Metadata reading failed:', error.type, error.info);
+            // Set fallback info
+            document.getElementById('songTitle').textContent = songName;
+            document.getElementById('songArtist').textContent = 'For Laura 💕';
+            document.getElementById('albumArt').src = 'default-album.jpg';
           }
-        } else {
-          albumArt.src = 'default-album.jpg';
-        }
-        
-        // Log additional metadata
-        if (tags.album) console.log('Album:', tags.album);
-        if (tags.year) console.log('Year:', tags.year);
-        if (tags.genre) console.log('Genre:', tags.genre);
-      },
-      onError: function(error) {
-        console.log('Metadata reading failed:', error);
+        });
+      } else {
+        console.log('❌ Failed to load file:', xhr.status);
         // Set fallback info
         document.getElementById('songTitle').textContent = songName;
         document.getElementById('songArtist').textContent = 'For Laura 💕';
         document.getElementById('albumArt').src = 'default-album.jpg';
       }
-    });
+    };
+    
+    xhr.onerror = function() {
+      console.log('❌ XHR error loading file');
+      // Set fallback info
+      document.getElementById('songTitle').textContent = songName;
+      document.getElementById('songArtist').textContent = 'For Laura 💕';
+      document.getElementById('albumArt').src = 'default-album.jpg';
+    };
+    
+    xhr.send();
   } else {
-    console.log('jsmediatags not available, using fallback');
+    console.log('⚠️ jsmediatags library not available, using fallback');
     // Fallback when library not available
     document.getElementById('songTitle').textContent = songName;
     document.getElementById('songArtist').textContent = 'For Laura 💕';
     document.getElementById('albumArt').src = 'default-album.jpg';
   }
   
-  console.log('Loaded song:', filename);
+  console.log('🎵 Loaded song:', filename);
 }
 
 function togglePlayPause() {
@@ -522,11 +574,6 @@ function CheckIfRight(event) {
     initializeJointTracker();
     initializeSavingsTracker();
     initializeMusicPlayer();
-    
-    // Add the large heart background
-    const heartBg = document.createElement('div');
-    heartBg.className = 'love-heart';
-    document.body.appendChild(heartBg);
     
     // Add some celebration hearts
     createCelebrationHearts();
