@@ -121,126 +121,36 @@ function handleAudioError(e) {
 }
 function loadSong() {
   const playlist = playlists[currentPlaylist];
-  if (!playlist || playlist.length === 0) {
-    document.getElementById('songTitle').textContent = "No songs found";
-    document.getElementById('songArtist').textContent = "Add MP3 files";
-    return;
-  }
-
   const filename = playlist[currentSongIndex];
-  if (!filename) return;
-  
-  // Set the audio source for playback
-  const filePath = filename;
-  audioPlayer.src = filePath;
-  
-  // Reset progress
-  document.getElementById('progressFillMusic').style.width = '0%';
-  document.getElementById('currentTime').textContent = '0:00';
-  document.getElementById('totalTime').textContent = '0:00';
-  
-  // Get clean name from filename (remove .mp3 and replace underscores)
-  const songName = filename.replace('.mp3', '').replace(/_/g, ' ');
-  
-  // --- Set Initial UI State ---
-  // Display clean fallback text immediately while metadata loads
-  document.getElementById('songTitle').textContent = songName;
-  document.getElementById('songArtist').textContent = 'For Laura 💕';
+  audioPlayer.src = filename;
+  document.getElementById('songTitle').textContent = 'Loading...';
+  document.getElementById('songArtist').textContent = '...';
   document.getElementById('albumArt').src = 'default-album.jpg';
-  
-  // --- Read Metadata ---
-  // Check if jsmediatags is available
-  if (typeof jsmediatags !== 'undefined') {
-    console.log('Attempting to read metadata for:', filePath);
-    
-    // First, let's check if the audio can actually load
-    audioPlayer.addEventListener('loadedmetadata', function onLoadedMetadata() {
-      console.log('✅ Audio file loaded successfully');
-      audioPlayer.removeEventListener('loadedmetadata', onLoadedMetadata);
-      
-      // Now try to read metadata
-      // For GitHub Pages, we need to ensure the file path is correct
-      // Try with both relative and absolute paths
-      const tryReadMetadata = (path) => {
-        jsmediatags.read(path, {
-          onSuccess: function(tag) {
-            console.log('✅ Metadata successfully read for:', path);
-            const tags = tag.tags;
-            
-            // Update the page with the metadata from the MP3 file
-            document.getElementById('songTitle').textContent = tags.title || songName;
-            document.getElementById('songArtist').textContent = tags.artist || 'For Laura 💕';
-            
-            const albumArt = document.getElementById('albumArt');
-            if (tags.picture) {
-              try {
-                // If album art exists in the metadata, convert it to a format the <img> tag can display
-                const { data, format } = tags.picture;
-                let base64String = "";
-                for (let i = 0; i < data.length; i++) {
-                  base64String += String.fromCharCode(data[i]);
-                }
-                
-                // Clean up previous object URL if using one
-                if (albumArt.dataset.objectUrl) {
-                  URL.revokeObjectURL(albumArt.dataset.objectUrl);
-                  delete albumArt.dataset.objectUrl;
-                }
-                
-                const mimeType = format || 'image/jpeg';
-                albumArt.src = `data:${mimeType};base64,${window.btoa(base64String)}`;
-                console.log('✅ Album art loaded from metadata');
-              } catch (artError) {
-                console.log('❌ Error processing album art:', artError);
-                albumArt.src = 'default-album.jpg';
-              }
-            } else {
-              console.log('ℹ️ No album art found in metadata');
-              albumArt.src = 'default-album.jpg';
-            }
-            
-            // Log additional metadata for debugging
-            if (tags.album) console.log('📀 Album:', tags.album);
-            if (tags.year) console.log('📅 Year:', tags.year);
-            if (tags.genre) console.log('🎵 Genre:', tags.genre);
-          },
-          onError: function(error) {
-            console.log('❌ Could not read metadata for', path, ':', error.type, error.info);
-            
-            // If relative path failed, try with absolute path
-            if (path === filePath && window.location.href.includes('github.io')) {
-              const absolutePath = new URL(filePath, window.location.href).href;
-              console.log('Trying absolute path:', absolutePath);
-              tryReadMetadata(absolutePath);
-            } else {
-              // Final fallback
-              document.getElementById('songTitle').textContent = songName;
-              document.getElementById('songArtist').textContent = 'For Laura 💕';
-            }
+
+  // Fetch the MP3 so jsmediatags can read tags from Blob
+  fetch(filename)
+    .then(res => res.arrayBuffer())
+    .then(buffer => {
+      const blob = new Blob([buffer]);
+      jsmediatags.read(blob, {
+        onSuccess: tag => {
+          const tags = tag.tags;
+          document.getElementById('songTitle').textContent = tags.title || filename.replace('.mp3','');
+          document.getElementById('songArtist').textContent = tags.artist || 'Unknown';
+          if (tags.picture) {
+            const { data, format } = tags.picture;
+            const byteArray = new Uint8Array(data);
+            const artBlob = new Blob([byteArray], { type: format });
+            const url = URL.createObjectURL(artBlob);
+            const art = document.getElementById('albumArt');
+            art.onload = () => URL.revokeObjectURL(url);
+            art.src = url;
           }
-        });
-      };
-      
-      // Start with the relative path
-      tryReadMetadata(filePath);
-    });
-    
-    // Handle audio loading errors
-    audioPlayer.addEventListener('error', function onError(e) {
-      console.log('❌ Audio loading error:', e);
-      document.getElementById('songTitle').textContent = songName;
-      document.getElementById('songArtist').textContent = 'Check file location';
-      audioPlayer.removeEventListener('error', onError);
-    });
-    
-  } else {
-    console.error("jsmediatags library not loaded!");
-    // Fallback when library not available
-    document.getElementById('songTitle').textContent = songName;
-    document.getElementById('songArtist').textContent = 'For Laura 💕';
-  }
-  
-  console.log('🎵 Loading song:', filename);
+        },
+        onError: error => console.error('Tag read error:', error)
+      });
+    })
+    .catch(err => console.error('Fetch error:', err));
 }
 // UPDATED: Rewritten playback functions for stability
 function togglePlayPause() {
